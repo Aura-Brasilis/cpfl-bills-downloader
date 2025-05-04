@@ -10,7 +10,7 @@ import fsPromise from 'fs/promises'
 import { fileURLToPath } from "url"
 import path from 'path'
 import FormData from 'form-data'
-const sgMail = require('@sendgrid/mail')
+import sgMail from '@sendgrid/mail'
 
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
 const IV = Buffer.from(process.env.IV, 'hex')
@@ -347,6 +347,7 @@ function getPlantBills(usinaId, data, basePath, taxaSoluttion) {
             nome: file,
             id: usinaId,
             caminho: filePath,
+            data,
             alreadyOnDb,
             operacao,
             taxaSoluttion
@@ -398,7 +399,6 @@ async function groupBills(basePath) {
 
         const relations = await getRelations(inquilinoId)
         const usinas = []
-        console.log('relations', relations)
         for (const rel of relations) {
           const plantsFounded = getPlantBills(rel.usina_id, data, basePath, Number(rel.usina.taxa_soluttion))
 
@@ -659,7 +659,7 @@ async function sendEnergyBillsToN8n() {
 async function sendMail(bills=[]) {
   const energyBillsNumbers = []
 
-  const promises = bills.map(async b => {
+  for (const b of bills) {
     if (b && b.operacao && b.data) {
       const operacao_mes = `${b.operacao}-${parseMonthYear(b.data)}`
 
@@ -671,38 +671,39 @@ async function sendMail(bills=[]) {
 
       const { energyBills } = res.data
 
-      if (energyBills && energyBills[0]) {
-        const { tipo, fatura_numero, Usuarios, usinas } = energyBills[0]
+      if (energyBills && energyBills.data && energyBills.data.length) {
+        const { tipo, fatura_numero, Usuarios, usinas } = energyBills.data[0]
 
         const name = tipo.includes("inquilino") ? Usuarios.nome : usinas.nome
 
         energyBillsNumbers.push({ fatura_numero, name })
       }
     }
-  })
-
-  await Promise.all(promises)
-
-  let html = '<p><strong>Faturas inseridas:</strong></p>'
-
-  energyBillsNumbers.map(e => {
-    html += `<p>${e.name} - ${process.env.CLIENT_BASE_URL}/${e.fatura_numero}</p>`
-  })
-
-  const msg = {
-    to: process.env.MAIL_TO,
-    from: process.env.MAIL_FROM,
-    subject: 'Faturas inseridas no sistema',
-    html,
   }
-  sgMail
-    .send(msg)
-    .then(() => {
-      console.log('Email sent')
+
+  if (energyBillsNumbers.length) {
+    let html = '<p><strong>Faturas inseridas:</strong></p>'
+  
+    energyBillsNumbers.map(e => {
+      html += `<p>${e.name} - ${process.env.CLIENT_BASE_URL}/${e.fatura_numero}</p>`
     })
-    .catch((error) => {
-      console.error(error)
-    }) 
+  
+    const msg = {
+      to: process.env.MAIL_TO,
+      from: process.env.MAIL_FROM,
+      subject: 'Faturas inseridas no sistema',
+      html,
+    }
+    sgMail
+      .send(msg)
+      .then(() => {
+        console.log('Email sent')
+      })
+      .catch((error) => {
+        console.error(error)
+      }) 
+  }
+
 }
 
 await downloadAllUsersEnergyBills()
@@ -715,6 +716,7 @@ while (havePendingInquilinos(basePath) && retrys <= 3) {
   removeUsinasIfNotPendingInquilinos(basePath)
   retrys++
 }
+
 
 await sendMail(billsToSend)
 
