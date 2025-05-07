@@ -39,9 +39,6 @@ app.post('/exec-script', (req, res) => {
   send('status', 'executando')
   res.json({ status: 'Executing script' })
 
-  console.log('Diretório atual:', process.cwd());
-  console.log('Arquivos:', fs.readdirSync(process.cwd()));
-
   currentProcess = spawn('node', [scriptPath])
 
   currentProcess.stdout.on('data', (data) => {
