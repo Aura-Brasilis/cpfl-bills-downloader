@@ -18,6 +18,25 @@ const IV = Buffer.from(process.env.IV, 'hex')
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+let browser
+
+setInterval(() => {}, 1000);
+
+process.on('SIGTERM', async () => {
+  console.log('Recebido SIGTERM no script. Fechando recursos...');
+
+  try {
+    if (browser) {
+      await browser.close();
+      console.log('Puppeteer fechado');
+    }
+  } catch (err) {
+    console.error('Erro ao fechar o browser:', err.message);
+  } finally {
+    process.exit(0);
+  }
+});
+
 let billsToSend = []
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY)
@@ -104,7 +123,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     if (!installation) return 'Error: Installation is required'
     if (!userId) return 'Error: Nome usuario is required'
 
-    const browser = await puppeteer.launch({ headless: true, args: ["--window-size=1920,1080", "--disable-blink-features=AutomationControlled"] })
+    browser = await puppeteer.launch({ headless: true, args: ["--window-size=1920,1080", "--disable-blink-features=AutomationControlled"] })
     const page = await browser.newPage()
 
     await page.setViewport({ width: 1920, height: 1080 })

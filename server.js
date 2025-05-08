@@ -60,10 +60,13 @@ app.post('/exec-script', (req, res) => {
 
 app.post('/cancel-script', (req, res) => {
   if (isRunning && currentProcess) {
-    currentProcess.kill()
-    send('log', 'Exec canceled by user')
-    send('status', 'cancelado')
-    res.json({ status: 'Canceled with success' })
+    console.log('test')
+    const killed = currentProcess.kill()
+    if (killed) {
+      send('log', 'Exec canceled by user')
+      send('status', 'cancelado')
+    }
+    res.json({ status: killed ? 'canceled' : 'Not able to cancel' })
   } else {
     res.status(400).json({ error: 'Proccess in execution not found' })
   }
