@@ -185,37 +185,30 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                     console.log('Redirect to 2 via page...')
                     await page.goto(`${process.env.CPFL_BASE_URL}/cpfl-auth/redirect-arame-servicos?servico=historico-de-contas-antigo`)
 
-                    console.log('Logging requests')
+                    console.log('Getting requests')
 
-                    let openBills = []
-                    let paidOffBills = []
+                    const paidPromise = paid
+                      ? page.waitForResponse(
+                          res => res.url().includes('/contas-quitadas') && res.status() === 200,
+                          { timeout: 10000 }
+                        ).then(async res => {
+                          const data = await res.json();
+                          return data.ContasPagas || [];
+                        }).catch(() => [])
+                      : Promise.resolve([]);
 
-                    page.on('response', async (response) => {
-                        if (paid && response.url().includes('/contas-quitadas')) {
-                            try {
-                                console.log("Requisição feita:", response.url())
-                                const dataPaidOff = await response.json()
-                                paidOffBills = dataPaidOff.ContasPagas
-                            } catch (err) {
-                                console.error("Error on read paid off bills API response: ", err)
-                            }
-                        }
+                    const openPromise = page.waitForResponse(
+                      res => res.url().includes('/validar-situacao') && res.status() === 200,
+                      { timeout: 10000 }
+                    ).then(async res => {
+                      const data = await res.json();
+                      return data.ContasAberto || [];
+                    }).catch(() => []);
 
-                        if (response.url().includes('/validar-situacao')) {
-                            try {
-                                console.log("Requisição feita:", response.url())
-                                const data = await response.json()
-                                openBills = data.ContasAberto
+                    const [paidOffBills, openBills] = await Promise.all([paidPromise, openPromise]);
 
-                                } catch (err) {
-                                console.error("Error on read open bills API response:", err)
-                                }
-                        }
-                    })
-
-                    await page.waitForNavigation()
-
-                    await page.waitForNetworkIdle()
+                    console.log('paidOfBills qtty: ', paidOffBills.length)
+                    console.log('openBills qtty: ', openBills.length)
 
                     console.log('Getting payload...')
                     const userSessionStorage = await page.evaluate(() => sessionStorage.getItem("userSessionStorage"))
