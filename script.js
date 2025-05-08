@@ -725,20 +725,31 @@ async function sendMail(bills=[]) {
 
 }
 
-await downloadAllUsersEnergyBills()
+async function main() {
+  try {
+    await downloadAllUsersEnergyBills()
 
-let retrys = 1
-while (havePendingInquilinos(basePath) && retrys <= 3) {
-  console.log(`Try number ${retrys}...`)
-  await sendEnergyBillsToN8n()
-  removeInsertedFiles(basePath)
-  removeUsinasIfNotPendingInquilinos(basePath)
-  retrys++
+    let retrys = 1
+    while (havePendingInquilinos(basePath) && retrys <= 3) {
+      console.log(`Try number ${retrys}...`)
+      await sendEnergyBillsToN8n()
+      removeInsertedFiles(basePath)
+      removeUsinasIfNotPendingInquilinos(basePath)
+      retrys++
+    }
+
+
+    await sendMail(billsToSend)
+
+    billsToSend = []
+
+    console.log('Flow finished.')
+  } catch(err) {
+    console.error("error on main flow: ", err)
+  } finally {
+    process.exit(0);
+  }
 }
 
+await main()
 
-await sendMail(billsToSend)
-
-billsToSend = []
-
-console.log('Flow finished.')

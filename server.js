@@ -60,7 +60,6 @@ app.post('/exec-script', (req, res) => {
 
 app.post('/cancel-script', (req, res) => {
   if (isRunning && currentProcess) {
-    console.log('test')
     const killed = currentProcess.kill()
     if (killed) {
       send('log', 'Exec canceled by user')
