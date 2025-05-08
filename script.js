@@ -123,7 +123,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     if (!installation) return 'Error: Installation is required'
     if (!userId) return 'Error: Nome usuario is required'
 
-    browser = await puppeteer.launch({ headless: true, args: ["--window-size=1920,1080", "--disable-blink-features=AutomationControlled"] })
+    browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox", "--window-size=1920,1080", "--disable-blink-features=AutomationControlled"] })
     const page = await browser.newPage()
 
     await page.setViewport({ width: 1920, height: 1080 })
