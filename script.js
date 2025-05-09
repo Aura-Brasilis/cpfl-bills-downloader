@@ -185,8 +185,6 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                     console.log('Redirect to 2 via page...')
                     await page.goto(`${process.env.CPFL_BASE_URL}/cpfl-auth/redirect-arame-servicos?servico=historico-de-contas-antigo`)
 
-                    await page.waitForTimeout(3000)
-
                     console.log('Getting requests')
 
                     const paidPromise = paid
