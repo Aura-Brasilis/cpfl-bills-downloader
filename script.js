@@ -20,22 +20,22 @@ const __dirname = path.dirname(__filename)
 
 let browser
 
-setInterval(() => {}, 1000);
+setInterval(() => {}, 1000)
 
 process.on('SIGTERM', async () => {
-  console.log('Recebido SIGTERM no script. Fechando recursos...');
+  console.log('Received SIGTERM. Closing resources...')
 
   try {
     if (browser) {
-      await browser.close();
-      console.log('Puppeteer fechado');
+      await browser.close()
+      console.log('Puppeteer closed')
     }
   } catch (err) {
-    console.error('Erro ao fechar o browser:', err.message);
+    console.error('Error on close browser:', err.message)
   } finally {
-    process.exit(0);
+    process.exit(0)
   }
-});
+})
 
 let billsToSend = []
 
@@ -192,20 +192,20 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                           res => res.url().includes('/contas-quitadas') && res.status() === 200,
                           { timeout: 30000 }
                         ).then(async res => {
-                          const data = await res.json();
-                          return data.ContasPagas || [];
+                          const data = await res.json()
+                          return data.ContasPagas || []
                         }).catch(() => [])
-                      : Promise.resolve([]);
+                      : Promise.resolve([])
 
                     const openPromise = page.waitForResponse(
                       res => res.url().includes('/validar-situacao') && res.status() === 200,
                       { timeout: 30000 }
                     ).then(async res => {
-                      const data = await res.json();
-                      return data.ContasAberto || [];
-                    }).catch(() => []);
+                      const data = await res.json()
+                      return data.ContasAberto || []
+                    }).catch(() => [])
 
-                    const [paidOffBills, openBills] = await Promise.all([paidPromise, openPromise]);
+                    const [paidOffBills, openBills] = await Promise.all([paidPromise, openPromise])
 
                     console.log('paidOfBills qtty: ', paidOffBills.length)
                     console.log('openBills qtty: ', openBills.length)
@@ -740,7 +740,7 @@ async function main() {
   } catch(err) {
     console.error("error on main flow: ", err)
   } finally {
-    process.exit(0);
+    process.exit(0)
   }
 }
 
