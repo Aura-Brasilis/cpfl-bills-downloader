@@ -152,24 +152,23 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     if (!userId) return 'Error: Nome usuario is required'
 
     let page
-    let localBrowser
 
     try {
-      if (localBrowser) {
+      if (browser) {
         try {
-          await localBrowser.close()
+          await browser.close()
           console.log('[Global Retry] Past browser closed.')
         } catch (err) {
           console.warn('Error while trying close past browser:', err.message)
         }
       }
 
-      localBrowser = await puppeteer.launch({
+      browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--window-size=1920,1080", "--disable-blink-features=AutomationControlled"]
       })
 
-      page = await localBrowser.newPage()
+      page = await browser.newPage()
       await page.setViewport({ width: 1920, height: 1080 })
       await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0 Win64 x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
       await page.evaluate(() => {
@@ -188,8 +187,6 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
       console.log("Clicked on login button...")
       await page.waitForNavigation()
       await page.waitForNetworkIdle()
-
-      browser = localBrowser
 
         try {
             await page.waitForSelector('#onetrust-accept-btn-handler', { visible: true })
