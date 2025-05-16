@@ -112,6 +112,8 @@ async function savePdf(pdfUrl, prefix='', installation='', type='', paid=false) 
 
     await new Promise((resolve, reject) => {
       https.get(pdfUrl, (response) => {
+        reject(new Error("test"))
+        return
         if (response.statusCode !== 200) {
           reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
           return
@@ -185,7 +187,6 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
       await page.type("#signInName", email, { delay: 50 })
       await page.type("#password", password, { delay: 50 })
       await page.click("#next")
-      throw new Error('err')
       console.log("Clicked on login button...")
       await page.waitForNavigation()
       await page.waitForNetworkIdle()
