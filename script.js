@@ -351,9 +351,21 @@ function getDataId(fileName) {
   return { id, data, alreadyOnDb, operacao }
 }
   
-async function getRelations(inquilinoId) {
+async function getRelations(inquilinoId, tenantsPlants=[]) {
   try {
+    return tenantsPlants.filter(f => String(f.inquilino_id) === String(inquilinoId))
+
     const res = await axios.get(`${process.env.API_BASE_URL}/tenants-plants/list?inquilinoId=${inquilinoId}`)
+    return res.data && res.data.tenantsPlants || []
+  } catch (err) {
+    console.error(`Erro ao buscar relacionamentos do inquilino ${inquilinoId}:`, err.message)
+    return []
+  }
+}
+
+async function getTenantsPlants() {
+    try {
+    const res = await axios.get(`${process.env.API_BASE_URL}/tenants-plants/list`)
     return res.data && res.data.tenantsPlants || []
   } catch (err) {
     console.error(`Erro ao buscar relacionamentos do inquilino ${inquilinoId}:`, err.message)
@@ -402,37 +414,28 @@ function getPlantBills(usinaId, data, basePath, taxaSoluttion) {
   
 async function groupBills(basePath) {
   console.log("Starting grouping bills")
+  const tenantsPlants = await getTenantsPlants()
+  const allUsers = await getUsers()
   const statuses = ['aberto', 'pago']
   const finalResult = []
 
   for (const status of statuses) {
     const inquilinoPath = path.join(basePath, status, 'inquilino')
-    console.log('Verifying status:', status)
     if (!fs.existsSync(inquilinoPath)) continue
 
     const folders = fs.readdirSync(inquilinoPath)
     for (const sub of folders) {
       const subPath = path.join(inquilinoPath, sub)
-      console.log('SubFolder:', subPath)
       if (!fs.statSync(subPath).isDirectory()) continue
 
       const files = fs.readdirSync(subPath)
       for (const file of files) {
         if (!file.endsWith('.pdf')) continue
 
-        console.log('Processing file:', file)
         const { id: inquilinoId, data, alreadyOnDb, operacao } = getDataId(file)
         const filePath = path.join(subPath, file)
 
-        let user = null
-        try {
-          console.log('Searching inquilino:', inquilinoId)
-          const res = await axios.get(`${process.env.API_BASE_URL}/users/get/${inquilinoId}`, { timeout: 10000 })
-          user = res.data.user
-        } catch (err) {
-          console.error(`Error while searching inquilino ${inquilinoId}:`, err.message)
-          continue
-        }
+        let user = allUsers.find(u => String(u.id) === String(inquilinoId))
 
         const inquilino = {
           estado: status,
@@ -445,11 +448,9 @@ async function groupBills(basePath) {
           porcentagemContratual: user && Number(user.porcentagem_contrato)
         }
 
-        console.log('Searching inquilino relations', inquilinoId)
         let relations = []
         try {
-          relations = await getRelations(inquilinoId)
-          console.log('Relations founded:', relations.length)
+          relations = await getRelations(inquilinoId, tenantsPlants)
         } catch (err) {
           console.error(`Error while searching relations for inquilino ${inquilinoId}:`, err.message)
           continue
@@ -457,7 +458,6 @@ async function groupBills(basePath) {
 
         const usinas = []
         for (const rel of relations) {
-          console.log(`Searching bills for ${rel.usina_id} on date ${data}`)
           const plantsFounded = getPlantBills(rel.usina_id, data, basePath, Number(rel.usina.taxa_soluttion))
           usinas.push(...plantsFounded)
         }
@@ -581,12 +581,12 @@ async function sendBillsToWebhook(groups) {
             }
           })
         } else {
-          console.error(`Failure on send to tenant ${group.inquilino.id}. Files kept.`)
+          console.log(`Failure on send to tenant ${group.inquilino.id}. Files kept.`)
         }
       } catch (err) {
-        console.error(`Error on send to tenant ${group.inquilino.id}:`, err.message)
+        console.log(`Error on send to tenant ${group.inquilino.id}:`, err.message)
         if (err && err.response && err.response.data) {
-          console.error(err.response.data)
+          console.log(err.response.data)
         }
       }
     } else {
