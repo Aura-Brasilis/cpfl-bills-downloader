@@ -331,10 +331,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                   } catch (err) {
                     console.log("Error while downloading pdfs")
                     throw err
-                  } finally {
-                    if (browser) await browser.close()
                   }
-
                 }
             }
 
@@ -344,8 +341,6 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     } catch (error) {
         console.error("Error on puppeteer", error)
         throw error
-    } finally {
-        if (browser) await browser.close()
     }
 
     if (browser) await browser.close()
