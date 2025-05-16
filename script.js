@@ -195,7 +195,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
             }
         } catch (err) {
             console.log('No cookies to accept found.')
-        } finally { {
+        } finally { 
                 try {
                     const element3 = await page.waitForSelector(`#instalacao-${installation}`, { timeout: 3000 })
                     
@@ -210,7 +210,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                         await page.waitForNetworkIdle()
                     }
                 } catch (err) {
-
+                  throw err
                 } finally {
                   try {
                     console.log('Redirect to 2 via page...')
@@ -341,11 +341,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                     throw err
                   }
                 }
-            }
-
-
         }
-
     } catch (error) {
         console.error("Error on puppeteer", error)
         throw error
