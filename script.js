@@ -344,6 +344,8 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     } finally {
         await browser.close()
     }
+
+    await browser.close()
 }
 
 function getDataId(fileName) {
