@@ -766,7 +766,7 @@ async function sendMail(bills=[]) {
 
 async function main() {
   try {
-    //await downloadAllUsersEnergyBills()
+    await downloadAllUsersEnergyBills()
 
     let retrys = 1
     while (havePendingInquilinos(basePath) && retrys <= 3) {
