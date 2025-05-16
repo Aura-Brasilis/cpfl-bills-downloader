@@ -54,6 +54,28 @@ function parseMonthYear(data, prefix='_') {
   return `${months[index]}/${year}`
 }
 
+async function withRetry(fn, options = {}) {
+  const {
+    maxRetries = 5,
+    delayMs = 15000,
+    onRetry = (err, attempt) => {
+      console.log(`Tentativa ${attempt} falhou: ${err.message}`)
+    },
+  } = options
+
+  let lastError
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err
+      onRetry(err, attempt)
+      if (attempt < maxRetries) await new Promise((r) => setTimeout(r, delayMs))
+    }
+  }
+  throw lastError
+}
+
 async function getUsers() {
     const res = await axios.get(`${process.env.API_BASE_URL}/users/list`)
 
@@ -80,26 +102,27 @@ async function savePdf(pdfUrl, prefix='', installation='', type='', paid=false) 
 
     console.log("Downloading PDF...")
 
-    await new Promise((resolve, reject) => {
-      https.get(pdfUrl, (response) => {
+      await withRetry(() => new Promise((resolve, reject) => {
+        https.get(pdfUrl, (response) => {
           if (response.statusCode !== 200) {
-              reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
-              return
+            reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
+            return
           }
-
           const fileStream = fs.createWriteStream(savePath)
-
           response.pipe(fileStream)
-
           fileStream.on('finish', () => {
-              fileStream.close()
-              console.log(`Download completed: ${savePath}`)
-              resolve()
+            fileStream.close()
+            console.log(`Download completed: ${savePath}`)
+            resolve()
           })
-      }).on('error', (err) => {
-          reject(err)
+        }).on('error', (err) => reject(err))
+      }), {
+        maxRetries: 5,
+        delayMs: 15000,
+        onRetry: (err, attempt) => {
+          console.log(`[Download Retry ${attempt}] Falha: ${err.message}`)
+        }
       })
-  })
 }
 
 function encrypt(text) {
@@ -140,16 +163,21 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
         console.log('------------------------------------------------------------------------')
         console.log('Auth on cpfl...', { email, installation, userId, type })
 
-        await page.goto(`${process.env.CPFL_BASE_URL}/b2c-auth/login`, { waitUntil: "networkidle2" })
-
-        await page.type("#signInName", email, { delay: 50 })
-        await page.type("#password", password, { delay: 50 })
-
-        await page.click("#next")
-
-        await page.waitForNavigation()
-
-        await page.waitForNetworkIdle()
+        await withRetry(async () => {
+          await page.goto(`${process.env.CPFL_BASE_URL}/b2c-auth/login`, { waitUntil: "networkidle2", timeout: 120000 })
+          await page.waitForSelector("#signInName", { timeout: 15000 })
+          await page.type("#signInName", email, { delay: 50 })
+          await page.type("#password", password, { delay: 50 })
+          await page.click("#next")
+          await page.waitForNavigation()
+          await page.waitForNetworkIdle()
+        }, {
+          maxRetries: 5,
+          delayMs: 15000,
+          onRetry: (err, attempt) => {
+            console.log(`[Login attempt ${attempt}] Erro: ${err.message}`)
+          }
+        })
 
         try {
             await page.waitForSelector('#onetrust-accept-btn-handler', { visible: true })
