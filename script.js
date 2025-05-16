@@ -181,8 +181,6 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
       await page.waitForNavigation()
       await page.waitForNetworkIdle()
 
-      throw new Error("err")
-
         try {
             await page.waitForSelector('#onetrust-accept-btn-handler', { visible: true })
 
@@ -283,7 +281,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                               downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true))
                           }
                       }
-                  
+                            throw new Error("err")
                       await Promise.all(downloadPromises)
                   }
 
@@ -724,7 +722,7 @@ async function downloadAllUsersEnergyBills() {
         }
       })
       } catch(err) {
-        console.log(`All attempts failed for user ${user.id_usuario}. Skipping for the next.`)
+        console.log(`All attempts failed for user ${user.id}. Skipping for the next.`)
       }
     }
 
