@@ -150,39 +150,54 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     if (!installation) return 'Error: Installation is required'
     if (!userId) return 'Error: Nome usuario is required'
 
-    browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox", "--window-size=1920,1080", "--disable-blink-features=AutomationControlled"] })
-    const page = await browser.newPage()
-
-    await page.setViewport({ width: 1920, height: 1080 })
-
-    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0 Win64 x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-
-    await page.evaluate(() => {
-        Object.defineProperty(navigator, "webdriver", { get: () => undefined })
-    })
-
-    page.setDefaultTimeout(90000)
+    let page
+    let localBrowser
 
     try {
-        console.log('------------------------------------------------------------------------')
-        console.log('Auth on cpfl...', { email, installation, userId, type })
+      console.log('------------------------------------------------------------------------')
+      console.log('Auth on cpfl...', { email, installation, userId, type })
 
-        await withRetry(async () => {
-          await page.goto(`${process.env.CPFL_BASE_URL}/b2c-auth/login`, { waitUntil: "networkidle2", timeout: 120000 })
-          await page.waitForSelector("#signInName", { timeout: 15000 })
-          await page.type("#signInName", email, { delay: 50 })
-          await page.type("#password", password, { delay: 50 })
-          await page.click("#next")
-          console.log("Clicked on login button...")
-          await page.waitForNavigation()
-          await page.waitForNetworkIdle()
-        }, {
-          maxRetries: 5,
-          delayMs: 25000,
-          onRetry: (err, attempt) => {
-            console.log(`[Login attempt ${attempt}] Erro: ${err.message}`)
+      await withRetry(async () => {
+        if (localBrowser) {
+          try {
+            await localBrowser.close()
+            console.log('[Login Retry] Navegador anterior fechado.')
+          } catch (err) {
+            console.warn('Erro ao fechar navegador anterior:', err.message)
           }
+        }
+
+        localBrowser = await puppeteer.launch({
+          headless: true,
+          args: ["--no-sandbox", "--window-size=1920,1080", "--disable-blink-features=AutomationControlled"]
         })
+
+        page = await localBrowser.newPage()
+        await page.setViewport({ width: 1920, height: 1080 })
+        await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0 Win64 x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+        await page.evaluate(() => {
+          Object.defineProperty(navigator, "webdriver", { get: () => undefined })
+        })
+        page.setDefaultTimeout(90000)
+
+        await page.goto(`${process.env.CPFL_BASE_URL}/b2c-auth/login`, { waitUntil: "networkidle2", timeout: 120000 })
+        await page.waitForSelector("#signInName", { timeout: 15000 })
+        await page.type("#signInName", email, { delay: 50 })
+        await page.type("#password", password, { delay: 50 })
+        await page.click("#next")
+        console.log("Clicked on login button...")
+        await page.waitForNavigation()
+        await page.waitForNetworkIdle()
+
+      }, {
+        maxRetries: 5,
+        delayMs: 25000,
+        onRetry: (err, attempt) => {
+          console.log(`[Login attempt ${attempt}] Erro: ${err.message}`)
+        }
+      })
+
+      browser = localBrowser
 
         try {
             await page.waitForSelector('#onetrust-accept-btn-handler', { visible: true })
@@ -334,7 +349,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                   } catch (err) {
                     console.log("Error while downloading pdfs")
                   } finally {
-                    await browser.close()
+                    if (browser) await browser.close()
                   }
 
                 }
@@ -346,10 +361,10 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     } catch (error) {
         console.error("Error on puppeteer", error)
     } finally {
-        await browser.close()
+        if (browser) await browser.close()
     }
 
-    await browser.close()
+    if (browser) await browser.close()
     console.log("Waiting before continue...")
     await sleep(20000)
 }
