@@ -212,6 +212,8 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                 
                         await page.click('#btn-buscar')
 
+                        throw new Error("err")
+
                         await page.waitForNavigation()
             
                         await page.waitForNetworkIdle()
