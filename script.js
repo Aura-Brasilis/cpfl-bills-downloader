@@ -217,7 +217,8 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                         await page.waitForNetworkIdle()
                     }
                 } catch (err) {
-
+                  console.log('Cant select installation')
+                  throw err
                 } finally {
                   try {
                     console.log('Redirect to 2 via page...')
