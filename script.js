@@ -102,24 +102,25 @@ async function savePdf(pdfUrl, prefix='', installation='', type='', paid=false) 
 
     console.log("Downloading PDF...")
 
-    await new Promise((resolve, reject) => {
-      https.get(pdfUrl, (response) => {
-            process.nextTick(() => {
-              reject(new Error("test"))
-            })
-        if (response.statusCode !== 200) {
-          reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
-          return
-        }
-        const fileStream = fs.createWriteStream(savePath)
-        response.pipe(fileStream)
-        fileStream.on('finish', () => {
-          fileStream.close()
-          console.log(`Download completed: ${savePath}`)
-          resolve()
-        })
-      }).on('error', (err) => reject(err))
-    })
+    try {
+      // simula erro de teste
+      throw new Error('test')
+
+      const response = await axios.get(pdfUrl, {
+        responseType: 'stream',
+        timeout: 60000,
+      })
+
+      if (response.status !== 200) {
+        throw new Error(`Error while downloading PDF. Status: ${response.status}`)
+      }
+
+      await streamPipeline(response.data, fs.createWriteStream(savePath))
+
+      console.log(`Download completed: ${savePath}`)
+  } catch (err) {
+    throw err
+  }
 }
 
 function encrypt(text) {
