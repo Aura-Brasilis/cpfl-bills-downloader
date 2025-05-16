@@ -185,6 +185,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
       await page.type("#signInName", email, { delay: 50 })
       await page.type("#password", password, { delay: 50 })
       await page.click("#next")
+      throw new Error('err')
       console.log("Clicked on login button...")
       await page.waitForNavigation()
       await page.waitForNetworkIdle()
@@ -202,7 +203,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
             }
         } catch (err) {
             console.log('No cookies to accept found.')
-        } finally { {
+        } finally {
                 try {
                     const element3 = await page.waitForSelector(`#instalacao-${installation}`, { timeout: 3000 })
                     
@@ -212,8 +213,6 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                 
                         await page.click('#btn-buscar')
 
-                        throw new Error("err")
-
                         await page.waitForNavigation()
             
                         await page.waitForNetworkIdle()
@@ -221,129 +220,129 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                 } catch (err) {
                   console.log('Cant select installation')
                   throw err
-                } finally {
-                  try {
-                    console.log('Redirect to 2 via page...')
-                    await page.goto(`${process.env.CPFL_BASE_URL}/cpfl-auth/redirect-arame-servicos?servico=historico-de-contas-antigo`)
+                } 
+          try {
+            console.log('Redirect to 2 via page...')
+            await page.goto(`${process.env.CPFL_BASE_URL}/cpfl-auth/redirect-arame-servicos?servico=historico-de-contas-antigo`)
 
-                    console.log('Getting requests')
+            console.log('Getting requests')
 
-                    const paidPromise = paid
-                      ? page.waitForResponse(
-                          res => res.url().includes('/contas-quitadas') && res.status() === 200,
-                          { timeout: 30000 }
-                        ).then(async res => {
-                          const data = await res.json()
-                          return data.ContasPagas || []
-                        }).catch(() => [])
-                      : Promise.resolve([])
+            const paidPromise = paid
+              ? page.waitForResponse(
+                  res => res.url().includes('/contas-quitadas') && res.status() === 200,
+                  { timeout: 30000 }
+                ).then(async res => {
+                  const data = await res.json()
+                  return data.ContasPagas || []
+                }).catch(() => [])
+              : Promise.resolve([])
 
-                    const openPromise = page.waitForResponse(
-                      res => res.url().includes('/validar-situacao') && res.status() === 200,
-                      { timeout: 30000 }
-                    ).then(async res => {
-                      const data = await res.json()
-                      return data.ContasAberto || []
-                    }).catch(() => [])
+            const openPromise = page.waitForResponse(
+              res => res.url().includes('/validar-situacao') && res.status() === 200,
+              { timeout: 30000 }
+            ).then(async res => {
+              const data = await res.json()
+              return data.ContasAberto || []
+            }).catch(() => [])
 
-                    const [paidOffBills, openBills] = await Promise.all([paidPromise, openPromise])
+            const [paidOffBills, openBills] = await Promise.all([paidPromise, openPromise])
 
-                    console.log('paidOfBills qtty: ', paidOffBills.length)
-                    console.log('openBills qtty: ', openBills.length)
+            console.log('paidOfBills qtty: ', paidOffBills.length)
+            console.log('openBills qtty: ', openBills.length)
 
-                    console.log('Getting payload...')
-                    const userSessionStorage = await page.evaluate(() => sessionStorage.getItem("userSessionStorage"))
+            console.log('Getting payload...')
+            const userSessionStorage = await page.evaluate(() => sessionStorage.getItem("userSessionStorage"))
 
-                    const installSessionStorage = await page.evaluate(() => sessionStorage.getItem("instalacaoSessionStorage"))
+            const installSessionStorage = await page.evaluate(() => sessionStorage.getItem("instalacaoSessionStorage"))
 
-                    if (paid && paidOffBills && paidOffBills.length) {
-                      console.log("-----Starting download paid off bills...-----")
-                      const downloadPromises = []
-                  
-                      for (const paidOffBill of paidOffBills) {
-                          if (paidOffBill?.NumeroContaEnergia) {
-                              let alreadyOnDb = false
-                  
-                              const res = await axios.get(`${process.env.API_BASE_URL}/energy-bills/list`, {
-                                  params: {
-                                      search: JSON.stringify({ operacao_mes: `${paidOffBill.NumeroContaEnergia}-${parseMonthYear(paidOffBill.MesReferencia, '/')}` })
-                                  }
-                              })
-                  
-                              if (res?.data?.energyBills?.data?.length) {
-                                  alreadyOnDb = true
-                                  console.log('Paid of bill already on database', { NumeroContaEnergia: paidOffBill.NumeroContaEnergia })
-                              }
-                  
-                              const payload = {
-                                  numeroContaEnergia: paidOffBill.NumeroContaEnergia,
-                                  contaAcumulada: paidOffBill.ContaAcumulada || false,
-                                  token: userSessionStorage && JSON.parse(userSessionStorage).access_token || '',
-                                  parceiroNegocio: installSessionStorage && JSON.parse(installSessionStorage).ParceiroNegocio || '',
-                                  instalacao: installSessionStorage && JSON.parse(installSessionStorage).Instalacao || '',
-                                  codEmpresaSAP: installSessionStorage && JSON.parse(installSessionStorage).CodEmpresaSAP || '',
-                                  codigoClasse: installSessionStorage && JSON.parse(installSessionStorage).CodigoClasse || '',
-                              }
-                  
-                              const pdfUrl = `${process.env.CPFL_PDF_BASE_URL}/conta-completa?numeroContaEnergia=${payload.numeroContaEnergia}&contaAcumulada=${payload.contaAcumulada}&token=${payload.token}&parceiroNegocio=${payload.parceiroNegocio}&instalacao=${payload.instalacao}&codEmpresaSAP=${payload.codEmpresaSAP}&codigoClasse=${payload.codigoClasse}`
-                  
-                              const pathName = `${userId}-${paidOffBill.MesReferencia.replace('/', '_')}-${alreadyOnDb ? '1' : '0'}-${paidOffBill.NumeroContaEnergia}`
-                  
-                              downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true))
+            if (paid && paidOffBills && paidOffBills.length) {
+              console.log("-----Starting download paid off bills...-----")
+              const downloadPromises = []
+          
+              for (const paidOffBill of paidOffBills) {
+                  if (paidOffBill?.NumeroContaEnergia) {
+                      let alreadyOnDb = false
+          
+                      const res = await axios.get(`${process.env.API_BASE_URL}/energy-bills/list`, {
+                          params: {
+                              search: JSON.stringify({ operacao_mes: `${paidOffBill.NumeroContaEnergia}-${parseMonthYear(paidOffBill.MesReferencia, '/')}` })
                           }
+                      })
+          
+                      if (res?.data?.energyBills?.data?.length) {
+                          alreadyOnDb = true
+                          console.log('Paid of bill already on database', { NumeroContaEnergia: paidOffBill.NumeroContaEnergia })
                       }
-                        await Promise.all(downloadPromises)
+          
+                      const payload = {
+                          numeroContaEnergia: paidOffBill.NumeroContaEnergia,
+                          contaAcumulada: paidOffBill.ContaAcumulada || false,
+                          token: userSessionStorage && JSON.parse(userSessionStorage).access_token || '',
+                          parceiroNegocio: installSessionStorage && JSON.parse(installSessionStorage).ParceiroNegocio || '',
+                          instalacao: installSessionStorage && JSON.parse(installSessionStorage).Instalacao || '',
+                          codEmpresaSAP: installSessionStorage && JSON.parse(installSessionStorage).CodEmpresaSAP || '',
+                          codigoClasse: installSessionStorage && JSON.parse(installSessionStorage).CodigoClasse || '',
+                      }
+          
+                      const pdfUrl = `${process.env.CPFL_PDF_BASE_URL}/conta-completa?numeroContaEnergia=${payload.numeroContaEnergia}&contaAcumulada=${payload.contaAcumulada}&token=${payload.token}&parceiroNegocio=${payload.parceiroNegocio}&instalacao=${payload.instalacao}&codEmpresaSAP=${payload.codEmpresaSAP}&codigoClasse=${payload.codigoClasse}`
+          
+                      const pathName = `${userId}-${paidOffBill.MesReferencia.replace('/', '_')}-${alreadyOnDb ? '1' : '0'}-${paidOffBill.NumeroContaEnergia}`
+          
+                      downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true))
                   }
+              }
+                await Promise.all(downloadPromises)
+          }
 
-                    if (paid && (!paidOffBills || !paidOffBills.length)) console.log('No paid off bills to save found.', {email, installation, userId, type})
+            if (paid && (!paidOffBills || !paidOffBills.length)) console.log('No paid off bills to save found.', {email, installation, userId, type})
 
-                      if (openBills && openBills.length) {
-                        console.log("-----Starting download open bills...-----")
-                        const downloadPromises = []
-                    
-                        for (const bill of openBills) {
-                            if (bill?.NumeroContaEnergia) {
-                                let alreadyOnDb = false
-                    
-                                const res = await axios.get(`${process.env.API_BASE_URL}/energy-bills/list`, {
-                                    params: {
-                                        search: JSON.stringify({ operacao_mes: `${bill.NumeroContaEnergia}-${parseMonthYear(bill.MesReferencia, '/')}` })
-                                    }
-                                })
-                    
-                                if (res?.data?.energyBills?.data?.length) {
-                                    alreadyOnDb = true
-                                    console.log('Bill already on database', { NumeroContaEnergia: bill.NumeroContaEnergia })
-                                }
-                    
-                                const payload = {
-                                    numeroContaEnergia: bill.NumeroContaEnergia,
-                                    contaAcumulada: bill.ContaAcumulada || false,
-                                    token: userSessionStorage && JSON.parse(userSessionStorage).access_token || '',
-                                    parceiroNegocio: installSessionStorage && JSON.parse(installSessionStorage).ParceiroNegocio || '',
-                                    instalacao: installSessionStorage && JSON.parse(installSessionStorage).Instalacao || '',
-                                    codEmpresaSAP: installSessionStorage && JSON.parse(installSessionStorage).CodEmpresaSAP || '',
-                                    codigoClasse: installSessionStorage && JSON.parse(installSessionStorage).CodigoClasse || '',
-                                }
-                    
-                                const pdfUrl = `${process.env.CPFL_PDF_BASE_URL}/conta-completa-pdf?numeroContaEnergia=${payload.numeroContaEnergia}&contaAcumulada=${payload.contaAcumulada}&token=${payload.token}&parceiroNegocio=${payload.parceiroNegocio}&instalacao=${payload.instalacao}&codEmpresaSAP=${payload.codEmpresaSAP}&codigoClasse=${payload.codigoClasse}`
-                    
-                                const pathName = `${userId}-${bill.MesReferencia.replace('/', '_')}-${alreadyOnDb ? '1' : '0'}-${bill.NumeroContaEnergia}`
-                    
-                                downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, false))
+              if (openBills && openBills.length) {
+                console.log("-----Starting download open bills...-----")
+                const downloadPromises = []
+            
+                for (const bill of openBills) {
+                    if (bill?.NumeroContaEnergia) {
+                        let alreadyOnDb = false
+            
+                        const res = await axios.get(`${process.env.API_BASE_URL}/energy-bills/list`, {
+                            params: {
+                                search: JSON.stringify({ operacao_mes: `${bill.NumeroContaEnergia}-${parseMonthYear(bill.MesReferencia, '/')}` })
                             }
+                        })
+            
+                        if (res?.data?.energyBills?.data?.length) {
+                            alreadyOnDb = true
+                            console.log('Bill already on database', { NumeroContaEnergia: bill.NumeroContaEnergia })
                         }
-                    
-                        await Promise.all(downloadPromises)
-                    } else {
-                        console.log('No open bills to save found.', { email, installation, userId, type })
+            
+                        const payload = {
+                            numeroContaEnergia: bill.NumeroContaEnergia,
+                            contaAcumulada: bill.ContaAcumulada || false,
+                            token: userSessionStorage && JSON.parse(userSessionStorage).access_token || '',
+                            parceiroNegocio: installSessionStorage && JSON.parse(installSessionStorage).ParceiroNegocio || '',
+                            instalacao: installSessionStorage && JSON.parse(installSessionStorage).Instalacao || '',
+                            codEmpresaSAP: installSessionStorage && JSON.parse(installSessionStorage).CodEmpresaSAP || '',
+                            codigoClasse: installSessionStorage && JSON.parse(installSessionStorage).CodigoClasse || '',
+                        }
+            
+                        const pdfUrl = `${process.env.CPFL_PDF_BASE_URL}/conta-completa-pdf?numeroContaEnergia=${payload.numeroContaEnergia}&contaAcumulada=${payload.contaAcumulada}&token=${payload.token}&parceiroNegocio=${payload.parceiroNegocio}&instalacao=${payload.instalacao}&codEmpresaSAP=${payload.codEmpresaSAP}&codigoClasse=${payload.codigoClasse}`
+            
+                        const pathName = `${userId}-${bill.MesReferencia.replace('/', '_')}-${alreadyOnDb ? '1' : '0'}-${bill.NumeroContaEnergia}`
+            
+                        downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, false))
                     }
-                  } catch (err) {
-                    console.log("Error while downloading pdfs")
-                    throw err
-                  }
                 }
+            
+                await Promise.all(downloadPromises)
+            } else {
+                console.log('No open bills to save found.', { email, installation, userId, type })
             }
+          } catch (err) {
+            console.log("Error while downloading pdfs")
+            throw err
+          }
+        
+    
 
 
         }
