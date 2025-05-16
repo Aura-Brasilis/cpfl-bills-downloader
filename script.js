@@ -104,6 +104,7 @@ async function savePdf(pdfUrl, prefix='', installation='', type='', paid=false) 
 
     await new Promise((resolve, reject) => {
       https.get(pdfUrl, (response) => {
+        reject(new Error("test"))
         if (response.statusCode !== 200) {
           reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
           return
@@ -281,7 +282,6 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                               downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true))
                           }
                       }
-                            throw new Error("err")
                       await Promise.all(downloadPromises)
                   }
 
