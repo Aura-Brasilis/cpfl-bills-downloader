@@ -285,12 +285,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                               downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true))
                           }
                       }
-                      try {
-                        await Promise.all(downloadPromises)
-                      } catch (err) {
-                        throw err
-                      }
-                      
+                      await Promise.all(downloadPromises) 
                   }
 
                     if (paid && (!paidOffBills || !paidOffBills.length)) console.log('No paid off bills to save found.', {email, installation, userId, type})
@@ -331,11 +326,9 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                                 downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, false))
                             }
                         }
-                        try {
-                          await Promise.all(downloadPromises)
-                        } catch(err) {
-                          throw err
-                        }
+
+                        await Promise.all(downloadPromises)
+                        
                     } else {
                         console.log('No open bills to save found.', { email, installation, userId, type })
                     }
