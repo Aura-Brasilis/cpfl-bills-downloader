@@ -140,6 +140,10 @@ function decrypt(encryptedText) {
   return decrypted.toString('utf8')
 }
 
+function sleep(delay) {
+  return new Promise((resolve) => setTimeout(resolve, delay))
+} 
+
 async function downloadEnergyBill(email, password, installation, userId, type, paid=false) {
     if (!email) return 'Error: Email is required'
     if (!password) return 'Error: Password is required'
@@ -346,6 +350,8 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     }
 
     await browser.close()
+    console.log("Waiting before continue...")
+    await sleep(20000)
 }
 
 function getDataId(fileName) {
@@ -357,9 +363,6 @@ function getDataId(fileName) {
 async function getRelations(inquilinoId, tenantsPlants=[]) {
   try {
     return tenantsPlants.filter(f => String(f.inquilino_id) === String(inquilinoId))
-
-    const res = await axios.get(`${process.env.API_BASE_URL}/tenants-plants/list?inquilinoId=${inquilinoId}`)
-    return res.data && res.data.tenantsPlants || []
   } catch (err) {
     console.error(`Erro ao buscar relacionamentos do inquilino ${inquilinoId}:`, err.message)
     return []
