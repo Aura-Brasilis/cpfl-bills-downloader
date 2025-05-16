@@ -706,7 +706,8 @@ async function downloadAllUsersEnergyBills() {
     const decryptedPassword = process.env.CPFL_PASSWORD ? decrypt(process.env.CPFL_PASSWORD) : ''
     
     for (const user of users) {
-      await withRetry(async () => {
+      try {
+        await withRetry(async () => {
         await downloadEnergyBill(
           process.env.CPFL_EMAIL,
           decryptedPassword,
@@ -722,7 +723,10 @@ async function downloadAllUsersEnergyBills() {
           console.log(`[Global try for user ${user.id}, try number ${attempt}] ${err.message}`)
         }
       })
-}
+      } catch(err) {
+        console.log(`All attempts failed for user ${user.id_usuario}. Skipping for the next.`)
+      }
+    }
 
     console.log('Done downloading energy bills...')
 }
