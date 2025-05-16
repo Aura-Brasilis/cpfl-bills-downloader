@@ -407,25 +407,32 @@ async function groupBills(basePath) {
 
   for (const status of statuses) {
     const inquilinoPath = path.join(basePath, status, 'inquilino')
+    console.log('Verifying status:', status)
     if (!fs.existsSync(inquilinoPath)) continue
 
     const folders = fs.readdirSync(inquilinoPath)
-
     for (const sub of folders) {
       const subPath = path.join(inquilinoPath, sub)
+      console.log('SubFolder:', subPath)
       if (!fs.statSync(subPath).isDirectory()) continue
 
       const files = fs.readdirSync(subPath)
-
       for (const file of files) {
         if (!file.endsWith('.pdf')) continue
 
+        console.log('Processing file:', file)
         const { id: inquilinoId, data, alreadyOnDb, operacao } = getDataId(file)
         const filePath = path.join(subPath, file)
 
-        const res = await axios.get(`${process.env.API_BASE_URL}/users/get/${inquilinoId}`)
-
-        const { user } = res.data
+        let user = null
+        try {
+          console.log('Searching inquilino:', inquilinoId)
+          const res = await axios.get(`${process.env.API_BASE_URL}/users/get/${inquilinoId}`, { timeout: 10000 })
+          user = res.data.user
+        } catch (err) {
+          console.error(`Error while searching inquilino ${inquilinoId}:`, err.message)
+          continue
+        }
 
         const inquilino = {
           estado: status,
@@ -438,11 +445,20 @@ async function groupBills(basePath) {
           porcentagemContratual: user && Number(user.porcentagem_contrato)
         }
 
-        const relations = await getRelations(inquilinoId)
+        console.log('Searching inquilino relations', inquilinoId)
+        let relations = []
+        try {
+          relations = await getRelations(inquilinoId)
+          console.log('Relations founded:', relations.length)
+        } catch (err) {
+          console.error(`Error while searching relations for inquilino ${inquilinoId}:`, err.message)
+          continue
+        }
+
         const usinas = []
         for (const rel of relations) {
+          console.log(`Searching bills for ${rel.usina_id} on date ${data}`)
           const plantsFounded = getPlantBills(rel.usina_id, data, basePath, Number(rel.usina.taxa_soluttion))
-
           usinas.push(...plantsFounded)
         }
 
