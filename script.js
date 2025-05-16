@@ -112,8 +112,6 @@ async function savePdf(pdfUrl, prefix='', installation='', type='', paid=false) 
 
     await new Promise((resolve, reject) => {
       https.get(pdfUrl, (response) => {
-        reject(new Error("test"))
-        return
         if (response.statusCode !== 200) {
           reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
           return
