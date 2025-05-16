@@ -281,7 +281,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                   
                               const pathName = `${userId}-${paidOffBill.MesReferencia.replace('/', '_')}-${alreadyOnDb ? '1' : '0'}-${paidOffBill.NumeroContaEnergia}`
                   
-                              downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true).catch(err => { throw err }))
+                              downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true))
                           }
                       }
                       try {
@@ -327,7 +327,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                     
                                 const pathName = `${userId}-${bill.MesReferencia.replace('/', '_')}-${alreadyOnDb ? '1' : '0'}-${bill.NumeroContaEnergia}`
                     
-                                downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, false).catch(err => { throw err }))
+                                downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, false))
                             }
                         }
                         try {
