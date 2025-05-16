@@ -106,6 +106,7 @@ async function savePdf(pdfUrl, prefix = '', installation = '', type = '', paid =
 
   console.log("Downloading PDF...")
 
+  await sleep(1)
   throw new Error('Erro de teste no download')
 
   const response = await axios.get(pdfUrl, {
