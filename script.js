@@ -102,27 +102,21 @@ async function savePdf(pdfUrl, prefix='', installation='', type='', paid=false) 
 
     console.log("Downloading PDF...")
 
-      await withRetry(() => new Promise((resolve, reject) => {
-        https.get(pdfUrl, (response) => {
-          if (response.statusCode !== 200) {
-            reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
-            return
-          }
-          const fileStream = fs.createWriteStream(savePath)
-          response.pipe(fileStream)
-          fileStream.on('finish', () => {
-            fileStream.close()
-            console.log(`Download completed: ${savePath}`)
-            resolve()
-          })
-        }).on('error', (err) => reject(err))
-      }), {
-        maxRetries: 5,
-        delayMs: 15000,
-        onRetry: (err, attempt) => {
-          console.log(`[Download Retry ${attempt}] Falha: ${err.message}`)
+    await new Promise((resolve, reject) => {
+      https.get(pdfUrl, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
+          return
         }
-      })
+        const fileStream = fs.createWriteStream(savePath)
+        response.pipe(fileStream)
+        fileStream.on('finish', () => {
+          fileStream.close()
+          console.log(`Download completed: ${savePath}`)
+          resolve()
+        })
+      }).on('error', (err) => reject(err))
+    })
 }
 
 function encrypt(text) {
@@ -145,31 +139,29 @@ function sleep(delay) {
 } 
 
 async function downloadEnergyBill(email, password, installation, userId, type, paid=false) {
-  return withRetry(async () => {
     if (!email) return 'Error: Email is required'
     if (!password) return 'Error: Password is required'
     if (!installation) return 'Error: Installation is required'
     if (!userId) return 'Error: Nome usuario is required'
 
     let page
-    let localBrowser
 
     try {
-      if (localBrowser) {
+      if (browser) {
         try {
-          await localBrowser.close()
-          console.log('[Global Retry] Past browser closed.')
+          await browser.close()
+          console.log('Past browser closed.')
         } catch (err) {
           console.warn('Error while trying close past browser:', err.message)
         }
       }
 
-      localBrowser = await puppeteer.launch({
+      browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--window-size=1920,1080", "--disable-blink-features=AutomationControlled"]
       })
 
-      page = await localBrowser.newPage()
+      page = await browser.newPage()
       await page.setViewport({ width: 1920, height: 1080 })
       await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0 Win64 x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
       await page.evaluate(() => {
@@ -189,9 +181,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
       await page.waitForNavigation()
       await page.waitForNetworkIdle()
 
-      browser = localBrowser
-
-      throw new Error("Error")
+      throw new Error("err")
 
         try {
             await page.waitForSelector('#onetrust-accept-btn-handler', { visible: true })
@@ -361,13 +351,7 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     if (browser) await browser.close()
     console.log("Waiting before continue...")
     await sleep(20000)
-    }, {
-    maxRetries: 3,
-    delayMs: 10000,
-    onRetry: (err, attempt) => {
-      console.log(`[downloadEnergyBill retry ${attempt}] Error: ${err.message}`)
-    }
-  })
+    
 }
 
 function getDataId(fileName) {
@@ -720,9 +704,23 @@ async function downloadAllUsersEnergyBills() {
     const decryptedPassword = process.env.CPFL_PASSWORD ? decrypt(process.env.CPFL_PASSWORD) : ''
     
     for (const user of users) {
-        const paidOffBills = true
-        await downloadEnergyBill(process.env.CPFL_EMAIL, decryptedPassword, user.id_usuario, user.id, user.tipo, paidOffBills)
-    }
+      await withRetry(async () => {
+        await downloadEnergyBill(
+          process.env.CPFL_EMAIL,
+          decryptedPassword,
+          user.id_usuario,
+          user.id,
+          user.tipo,
+          true
+        )
+      }, {
+        maxRetries: 3,
+        delayMs: 15000,
+        onRetry: (err, attempt) => {
+          console.log(`[Global try for user ${user.id}, try number ${attempt}] ${err.message}`)
+        }
+      })
+}
 
     console.log('Done downloading energy bills...')
 }
