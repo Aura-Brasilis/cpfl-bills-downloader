@@ -401,6 +401,7 @@ function getPlantBills(usinaId, data, basePath, taxaSoluttion) {
 }
   
 async function groupBills(basePath) {
+  console.log("Starting grouping bills")
   const statuses = ['aberto', 'pago']
   const finalResult = []
 
@@ -450,6 +451,7 @@ async function groupBills(basePath) {
     }
   }
 
+  console.log("Done grouping bills")
   return finalResult
 }
 
@@ -748,7 +750,7 @@ async function sendMail(bills=[]) {
 
 async function main() {
   try {
-    await downloadAllUsersEnergyBills()
+    //await downloadAllUsersEnergyBills()
 
     let retrys = 1
     while (havePendingInquilinos(basePath) && retrys <= 3) {
