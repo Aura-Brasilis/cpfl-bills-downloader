@@ -145,6 +145,7 @@ function sleep(delay) {
 } 
 
 async function downloadEnergyBill(email, password, installation, userId, type, paid=false) {
+  return withRetry(async () => {
     if (!email) return 'Error: Email is required'
     if (!password) return 'Error: Password is required'
     if (!installation) return 'Error: Installation is required'
@@ -154,48 +155,39 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     let localBrowser
 
     try {
+      if (localBrowser) {
+        try {
+          await localBrowser.close()
+          console.log('[Global Retry] Past browser closed.')
+        } catch (err) {
+          console.warn('Error while trying close past browser:', err.message)
+        }
+      }
+
+      localBrowser = await puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox", "--window-size=1920,1080", "--disable-blink-features=AutomationControlled"]
+      })
+
+      page = await localBrowser.newPage()
+      await page.setViewport({ width: 1920, height: 1080 })
+      await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0 Win64 x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined })
+      })
+      page.setDefaultTimeout(90000)
+
       console.log('------------------------------------------------------------------------')
       console.log('Auth on cpfl...', { email, installation, userId, type })
 
-      await withRetry(async () => {
-        if (localBrowser) {
-          try {
-            await localBrowser.close()
-            console.log('[Login Retry] Navegador anterior fechado.')
-          } catch (err) {
-            console.warn('Erro ao fechar navegador anterior:', err.message)
-          }
-        }
-
-        localBrowser = await puppeteer.launch({
-          headless: true,
-          args: ["--no-sandbox", "--window-size=1920,1080", "--disable-blink-features=AutomationControlled"]
-        })
-
-        page = await localBrowser.newPage()
-        await page.setViewport({ width: 1920, height: 1080 })
-        await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0 Win64 x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-        await page.evaluate(() => {
-          Object.defineProperty(navigator, "webdriver", { get: () => undefined })
-        })
-        page.setDefaultTimeout(90000)
-
-        await page.goto(`${process.env.CPFL_BASE_URL}/b2c-auth/login`, { waitUntil: "networkidle2", timeout: 120000 })
-        await page.waitForSelector("#signInName", { timeout: 15000 })
-        await page.type("#signInName", email, { delay: 50 })
-        await page.type("#password", password, { delay: 50 })
-        await page.click("#next")
-        console.log("Clicked on login button...")
-        await page.waitForNavigation()
-        await page.waitForNetworkIdle()
-
-      }, {
-        maxRetries: 5,
-        delayMs: 25000,
-        onRetry: (err, attempt) => {
-          console.log(`[Login attempt ${attempt}] Erro: ${err.message}`)
-        }
-      })
+      await page.goto(`${process.env.CPFL_BASE_URL}/b2c-auth/login`, { waitUntil: "networkidle2", timeout: 120000 })
+      await page.waitForSelector("#signInName", { timeout: 15000 })
+      await page.type("#signInName", email, { delay: 50 })
+      await page.type("#password", password, { delay: 50 })
+      await page.click("#next")
+      console.log("Clicked on login button...")
+      await page.waitForNavigation()
+      await page.waitForNetworkIdle()
 
       browser = localBrowser
 
@@ -367,6 +359,13 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
     if (browser) await browser.close()
     console.log("Waiting before continue...")
     await sleep(20000)
+    }, {
+    maxRetries: 3,
+    delayMs: 10000,
+    onRetry: (err, attempt) => {
+      console.log(`[downloadEnergyBill retry ${attempt}] Error: ${err.message}`)
+    }
+  })
 }
 
 function getDataId(fileName) {
