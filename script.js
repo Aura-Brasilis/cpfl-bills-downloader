@@ -169,10 +169,12 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
           await page.type("#signInName", email, { delay: 50 })
           await page.type("#password", password, { delay: 50 })
           await page.click("#next")
+          console.log("Clicked on login button...")
           await page.waitForNavigation()
+          await page.waitForNetworkIdle()
         }, {
           maxRetries: 5,
-          delayMs: 15000,
+          delayMs: 25000,
           onRetry: (err, attempt) => {
             console.log(`[Login attempt ${attempt}] Erro: ${err.message}`)
           }
