@@ -11,9 +11,6 @@ import { fileURLToPath } from "url"
 import path from 'path'
 import FormData from 'form-data'
 import sgMail from '@sendgrid/mail'
-import { promisify } from 'util'
-import { pipeline } from 'stream'
-const streamPipeline = promisify(pipeline)
 
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
 const IV = Buffer.from(process.env.IV, 'hex')
@@ -105,25 +102,22 @@ async function savePdf(pdfUrl, prefix='', installation='', type='', paid=false) 
 
     console.log("Downloading PDF...")
 
-    try {
-      // simula erro de teste
-      throw new Error('test')
-
-      const response = await axios.get(pdfUrl, {
-        responseType: 'stream',
-        timeout: 60000,
-      })
-
-      if (response.status !== 200) {
-        throw new Error(`Error while downloading PDF. Status: ${response.status}`)
-      }
-
-      await streamPipeline(response.data, fs.createWriteStream(savePath))
-
-      console.log(`Download completed: ${savePath}`)
-  } catch (err) {
-    throw err
-  }
+    await new Promise((resolve, reject) => {
+      https.get(pdfUrl, (response) => {
+        reject(new Error("test"))
+        if (response.statusCode !== 200) {
+          reject(new Error(`Error while downloading PDF. Status code: ${response.statusCode}`))
+          return
+        }
+        const fileStream = fs.createWriteStream(savePath)
+        response.pipe(fileStream)
+        fileStream.on('finish', () => {
+          fileStream.close()
+          console.log(`Download completed: ${savePath}`)
+          resolve()
+        })
+      }).on('error', (err) => reject(err))
+    })
 }
 
 function encrypt(text) {
@@ -285,10 +279,15 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                   
                               const pathName = `${userId}-${paidOffBill.MesReferencia.replace('/', '_')}-${alreadyOnDb ? '1' : '0'}-${paidOffBill.NumeroContaEnergia}`
                   
-                              downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true))
+                              downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, true).catch(err => { throw err }))
                           }
                       }
-                      await Promise.all(downloadPromises)
+                      try {
+                        await Promise.all(downloadPromises)
+                      } catch (err) {
+                        throw err
+                      }
+                      
                   }
 
                     if (paid && (!paidOffBills || !paidOffBills.length)) console.log('No paid off bills to save found.', {email, installation, userId, type})
@@ -326,11 +325,14 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
                     
                                 const pathName = `${userId}-${bill.MesReferencia.replace('/', '_')}-${alreadyOnDb ? '1' : '0'}-${bill.NumeroContaEnergia}`
                     
-                                downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, false))
+                                downloadPromises.push(savePdf(pdfUrl, pathName, installation, type, false).catch(err => { throw err }))
                             }
                         }
-                    
-                        await Promise.all(downloadPromises)
+                        try {
+                          await Promise.all(downloadPromises)
+                        } catch(err) {
+                          throw err
+                        }
                     } else {
                         console.log('No open bills to save found.', { email, installation, userId, type })
                     }
