@@ -22,6 +22,14 @@ let browser
 
 setInterval(() => {}, 1000)
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err)
+})
+
 process.on('SIGTERM', async () => {
   console.log('Received SIGTERM. Closing resources...')
 
