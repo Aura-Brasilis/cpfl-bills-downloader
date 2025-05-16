@@ -11,6 +11,9 @@ import { fileURLToPath } from "url"
 import path from 'path'
 import FormData from 'form-data'
 import sgMail from '@sendgrid/mail'
+import { promisify } from 'util'
+import { pipeline } from 'stream'
+const streamPipeline = promisify(pipeline)
 
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
 const IV = Buffer.from(process.env.IV, 'hex')
