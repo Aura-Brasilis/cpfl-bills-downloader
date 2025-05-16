@@ -170,7 +170,6 @@ async function downloadEnergyBill(email, password, installation, userId, type, p
           await page.type("#password", password, { delay: 50 })
           await page.click("#next")
           await page.waitForNavigation()
-          await page.waitForNetworkIdle()
         }, {
           maxRetries: 5,
           delayMs: 15000,
